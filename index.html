@@ -176,8 +176,18 @@ A.cedit=i=>{const c=S.comms.find(c=>c.id===i);if(c.own!==S.me)return;const d=pro
 A.cdelc=i=>{const c=S.comms.find(c=>c.id===i);if(c.own!==S.me||!confirm('Excluir a comunidade e todas as publicações dela?'))return;S.posts=S.posts.filter(p=>p.comm!==i);S.comms=S.comms.filter(x=>x!==c);go('comms')};
 A.crm=i=>{const[c,u]=i.split(':'),C=S.comms.find(x=>x.id===c);if(C.own!==S.me||u===S.me)return;C.mem=C.mem.filter(x=>x!==u);nt(u,'Você foi removido de '+C.name);render()};
 A.join=i=>{const c=S.comms.find(c=>c.id===i);if(c.own===S.me)return toast('O dono não pode sair da própria comunidade.');const k=c.mem.indexOf(S.me);k<0?(c.mem.push(S.me),toast('Você entrou')):(c.mem.splice(k,1),toast('Você saiu'));render()};
-document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(t&&A[t.dataset.a]){e.preventDefault();A[t.dataset.a](t.dataset.i)}});
+const SB={url:'https://vtbszvbpqwleyvafarho.supabase.co',key:'sb_publishable_GocRkxOvy_pUvFseqGkAZw_1S4ubPjr'};
+const SH=['users','posts','comms','dms','notifs','reports','audit','cfg'];
+const sbH=()=>{const o={apikey:SB.key,'Content-Type':'application/json'};if(SB.key.startsWith('eyJ'))o.Authorization='Bearer '+SB.key;return o};
+const snap=()=>JSON.stringify(SH.map(k=>S[k]));
+async function pull(){const r=await fetch(SB.url+'/rest/v1/vybe_state?id=eq.main&select=data',{headers:sbH(),cache:'no-store'});if(!r.ok)throw new Error('pull');const j=await r.json();if(j[0]&&j[0].data){const d=j[0].data;SH.forEach(k=>{if(d[k]!==undefined)S[k]=d[k]});if(S.me&&!U(S.me))S.me=null}}
+async function push(){const d={};SH.forEach(k=>d[k]=S[k]);const r=await fetch(SB.url+'/rest/v1/vybe_state',{method:'POST',headers:{...sbH(),Prefer:'resolution=merge-duplicates'},body:JSON.stringify({id:'main',data:d,updated:new Date().toISOString()})});if(!r.ok)throw new Error('push')}
+let chain=Promise.resolve();
+const sync=fn=>{if(!SB.url)return fn();return chain=chain.then(async()=>{let ok=1;try{await pull()}catch(e){ok=0;toast('Sem servidor: dados só neste aparelho.')}await fn();if(ok)try{await push()}catch(e){toast('Não foi possível salvar. Muitas imagens?')}})};
+const UI=['mode','tab','open','tpoll','ped','ctab','go','img','link','mysv','comm','prof','chat','tag','hdl','adm'];
+setInterval(()=>{if(!SB.url||document.hidden)return;const a=document.activeElement;if(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName))return;chain=chain.then(async()=>{const b=snap();try{await pull()}catch(e){return}if(snap()!==b)render()})},8000);
+document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(t&&A[t.dataset.a]){e.preventDefault();const f=()=>A[t.dataset.a](t.dataset.i);UI.includes(t.dataset.a)?f():sync(f)}});
 document.addEventListener('input',e=>{if(e.target.id==='q'){v.q=e.target.value;const p=e.target.selectionStart;render();const q=$('#q');q.focus();q.setSelectionRange(p,p)}if(e.target.id==='uq'){v.uq=e.target.value;const p=e.target.selectionStart;render();const q=$('#uq');q.focus();q.setSelectionRange(p,p)}});
-document.addEventListener('change',e=>{if(e.target.id==='fi'){const f=e.target.files[0],t=v.imgT||'';e.target.value='';if(!f)return;const[k,c]=t.split(':'),p=k==='photo';shrink(f,p?256:900,p?256:300,d=>{if(p)M().photo=d;else if(k==='cover')M().covImg=d;else{const C=S.comms.find(x=>x.id===c);if(!C||C.own!==S.me)return;C.img=d}save();render();toast('Imagem atualizada')})}if(e.target.id==='th'){S.theme=e.target.value;render()}if(e.target.id==='pv'){M().priv=e.target.checked;render()}});
-render();
+document.addEventListener('change',e=>{if(e.target.id==='fi'){const f=e.target.files[0],t=v.imgT||'';e.target.value='';if(!f)return;const[k,c]=t.split(':'),p=k==='photo';shrink(f,p?256:900,p?256:300,d=>sync(()=>{if(p)M().photo=d;else if(k==='cover')M().covImg=d;else{const C=S.comms.find(x=>x.id===c);if(!C||C.own!==S.me)return;C.img=d}save();render();toast('Imagem atualizada')}))}if(e.target.id==='th'){S.theme=e.target.value;render()}if(e.target.id==='pv')sync(()=>{M().priv=e.target.checked;render()})});
+render();if(SB.url)sync(()=>render());
 </script></body></html>
